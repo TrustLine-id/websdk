@@ -66,6 +66,11 @@ export interface TrustlineErrorResponse {
   };
 }
 
+export interface JWTAuthMessage {
+  type: 'JWT_TOKEN';
+  jwt: string;
+}
+
 export type TrustlineValidateResponse =
   | TrustlineApprovedResponse
   | TrustlineRejectedResponse
