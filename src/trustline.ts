@@ -39,7 +39,7 @@ class TrustlineSDK {
 
   private async openAuthPopup(): Promise<string> {
     return new Promise((resolve, reject) => {
-      const popupConfig = 'toolbar=no,scrollbars=no,location=no,statusbar=no,menubar=no,resizable=0,width=700,height=1000';
+      const popupConfig = 'toolbar=no,scrollbars=no,location=no,statusbar=no,menubar=no,resizable=0,width=620,height=800';
       const popup = window.open(AUTH_URL, 'Trustline Authentication', popupConfig);
       
       if (!popup) {
