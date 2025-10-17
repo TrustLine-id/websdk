@@ -1,5 +1,7 @@
 // Trustline SDK Types
 
+export type ValidationMode = 'uniswapv4' | 'morphov2' | 'erc3643' | 'dapp';
+
 export interface TrustlineInitOptions {
   clientId: string;
   loginUri?: string;
@@ -14,6 +16,7 @@ export interface TrustlineWeb3ValidateParams {
     functionSelector?: string;
     args?: any[];
   } | string;
+  validationMode?: ValidationMode;
 }
 
 export interface TrustlineWeb2ValidateParams {
