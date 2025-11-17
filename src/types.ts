@@ -79,3 +79,130 @@ export type TrustlineValidateResponse =
   | TrustlineRejectedResponse
   | TrustlineApprovalRequiredResponse
   | TrustlineErrorResponse;
+
+// configurePolicy Types
+
+export type JsonElement = 
+  | string 
+  | number 
+  | boolean 
+  | null 
+  | JsonElement[] 
+  | { [key: string]: JsonElement };
+
+export interface ConfigurePolicyParams {
+  /**
+   * Chain ID (required)
+   * Can be hex string (0x...) or decimal string
+   */
+  chainId: string;
+  
+  /**
+   * Sender address (required)
+   * The address that will send the transaction
+   * This is used for transaction context matching
+   */
+  senderAddress: string;
+  
+  /**
+   * Signer address (required)
+   * The address that signs the EIP-712 signature
+   * This is verified during signature validation
+   * For use case verification (e.g., Escrow), this must match the depositor
+   */
+  signerAddress: string;
+  
+  /**
+   * Contract address (required)
+   * The target contract address for the transaction
+   * Also used as clientId if clientId is not provided
+   */
+  contractAddress: string;
+  
+  /**
+   * Native amount (required)
+   * Transaction value in native token (ETH, etc.)
+   * Can be hex string (0x...) or decimal string
+   * Will be normalized to lowercase for hashing
+   */
+  nativeAmount: string;
+  
+  /**
+   * Transaction data (required)
+   * Can be either:
+   * - Raw: { msgData: "0x..." }
+   * - Structured: { functionSelector: "withdraw(uint256)", args: [...] }
+   */
+  data: {
+    functionSelector?: string;
+    args?: any[];
+  } | string;
+  
+  /**
+   * Validation mode (optional)
+   * "erc3643", "uniswapv4", "morphov2", or null/undefined for dapp mode
+   */
+  validationMode?: string | null;
+  
+  /**
+   * Policy type (required)
+   * One of: "UserAuthenticationPolicy", "IPLocationPolicy", "ProxyCheckPolicy", "RiskAssessmentPolicy"
+   */
+  policyType: string;
+  
+  /**
+   * Customization parameters (required)
+   * JSON object with policy-specific parameters
+   */
+  customization: Record<string, any>;
+}
+
+export interface ConfigurePolicyResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: boolean;
+    error?: string;
+  };
+}
+
+export interface ConfigurePolicyErrorResponse {
+  jsonrpc: string;
+  id: number;
+  error: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+
+export type ConfigurePolicyResult = ConfigurePolicyResponse | ConfigurePolicyErrorResponse;
+
+// EIP-712 Signer Interface
+export interface EIP712Domain {
+  name: string;
+  version: string;
+  chainId: bigint | number;
+  verifyingContract: string;
+}
+
+export interface EIP712Types {
+  [key: string]: Array<{ name: string; type: string }>;
+}
+
+export interface EIP712Message {
+  [key: string]: any;
+}
+
+/**
+ * Signer function for EIP-712 typed data signing
+ * @param domain EIP-712 domain
+ * @param types EIP-712 types
+ * @param message EIP-712 message
+ * @returns Promise resolving to the signature string (0x...)
+ */
+export type EIP712Signer = (
+  domain: EIP712Domain,
+  types: EIP712Types,
+  message: EIP712Message
+) => Promise<string>;
