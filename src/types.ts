@@ -178,6 +178,83 @@ export interface ConfigurePolicyErrorResponse {
 
 export type ConfigurePolicyResult = ConfigurePolicyResponse | ConfigurePolicyErrorResponse;
 
+// fetchPolicy Types
+
+export interface FetchPolicyParams {
+  /**
+   * Chain ID (required)
+   * Can be hex string (0x...) or decimal string
+   */
+  chainId: string;
+  
+  /**
+   * Sender address (required)
+   * The address that will send the transaction
+   * Used for customization lookup matching
+   */
+  senderAddress: string;
+  
+  /**
+   * Contract address (required)
+   * The target contract address for the transaction
+   * Also used as clientId if clientId is not provided
+   */
+  contractAddress: string;
+  
+  /**
+   * Native amount (required)
+   * Transaction value in native token (ETH, etc.)
+   * Can be hex string (0x...) or decimal string
+   */
+  nativeAmount: string;
+  
+  /**
+   * Transaction data (required)
+   * Can be either:
+   * - Raw: string (hex string like "0x...")
+   * - Structured: object with { functionSelector?: string, args?: any[] }
+   */
+  data: {
+    functionSelector?: string;
+    args?: any[];
+  } | string;
+  
+  /**
+   * Validation mode (optional)
+   * "erc3643", "uniswapv4", "morphov2", or null/undefined for dapp mode
+   */
+  validationMode?: string | null;
+}
+
+export interface Policy {
+  type: string;
+  [key: string]: any;
+}
+
+export interface FetchPolicyResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: true;
+    policy: Policy;
+    isCustomized: boolean;
+    actionId: string;
+    clientId: string;
+    transactionDataHash: string;
+  };
+}
+
+export interface FetchPolicyErrorResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: false;
+    error: string;
+  };
+}
+
+export type FetchPolicyResult = FetchPolicyResponse | FetchPolicyErrorResponse;
+
 // EIP-712 Signer Interface
 export interface EIP712Domain {
   name: string;
