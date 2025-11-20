@@ -255,6 +255,62 @@ export interface FetchPolicyErrorResponse {
 
 export type FetchPolicyResult = FetchPolicyResponse | FetchPolicyErrorResponse;
 
+// fetchDefaultPolicy Types
+
+export interface FetchDefaultPolicyParams {
+  /**
+   * Chain ID (required)
+   * Can be hex string (0x...) or decimal string
+   */
+  chainId: string;
+  
+  /**
+   * Contract address (required)
+   * The target contract address for the transaction
+   * Also used as clientId if clientId is not provided
+   */
+  contractAddress: string;
+  
+  /**
+   * Transaction data (required)
+   * Can be either:
+   * - Raw: string (hex string like "0x...")
+   * - Structured: object with { functionSelector?: string, args?: any[] }
+   */
+  data: {
+    functionSelector?: string;
+    args?: any[];
+  } | string;
+  
+  /**
+   * Validation mode (optional)
+   * "erc3643", "uniswapv4", "morphov2", or null/undefined for dapp mode
+   */
+  validationMode?: string | null;
+}
+
+export interface FetchDefaultPolicyResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: true;
+    policy: Policy;
+    actionId: string;
+    clientId: string;
+  };
+}
+
+export interface FetchDefaultPolicyErrorResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: false;
+    error: string;
+  };
+}
+
+export type FetchDefaultPolicyResult = FetchDefaultPolicyResponse | FetchDefaultPolicyErrorResponse;
+
 // EIP-712 Signer Interface
 export interface EIP712Domain {
   name: string;

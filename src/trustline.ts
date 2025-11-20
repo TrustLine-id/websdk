@@ -8,6 +8,8 @@ import {
   ConfigurePolicyResult,
   FetchPolicyParams,
   FetchPolicyResult,
+  FetchDefaultPolicyParams,
+  FetchDefaultPolicyResult,
   EIP712Signer,
   EIP712Domain,
   EIP712Types,
@@ -453,6 +455,93 @@ class TrustlineSDK {
       return await res.json();
     } catch (error) {
       throw new Error(`Trustline: Failed to fetch policy: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  /**
+   * Fetch the default policy for a specific transaction context
+   * 
+   * Returns the default policy without resolving any customizations.
+   * This is useful for comparing default vs customized policies.
+   * 
+   * The data field can be either:
+   * - Raw: string (hex string like "0x...")
+   * - Structured: object with { functionSelector?: string, args?: any[] }
+   * 
+   * @param params Fetch default policy parameters
+   * @returns Promise resolving to the fetch default policy result
+   * 
+   * @example
+   * ```typescript
+   * // Using raw data
+   * const result = await trustline.fetchDefaultPolicy({
+   *   chainId: '84532',
+   *   contractAddress: '0x...',
+   *   data: '0x3d18b9120000000000000000000000000000000000000000000000000000000000000001'
+   * });
+   * 
+   * if (result.result.success) {
+   *   console.log('Default policy type:', result.result.policy.type);
+   *   console.log('Action ID:', result.result.actionId);
+   * }
+   * ```
+   * 
+   * @example
+   * ```typescript
+   * // Using structured data
+   * const result = await trustline.fetchDefaultPolicy({
+   *   chainId: '84532',
+   *   contractAddress: '0x...',
+   *   data: {
+   *     functionSelector: 'withdraw(uint256)',
+   *     args: ['1']
+   *   }
+   * });
+   * ```
+   */
+  async fetchDefaultPolicy(params: FetchDefaultPolicyParams): Promise<FetchDefaultPolicyResult> {
+    if (!this.clientId) {
+      throw new Error('Trustline: SDK not initialized');
+    }
+
+    // Validate required parameters
+    if (!params.chainId) {
+      throw new Error('Trustline: chainId is required');
+    }
+    if (!params.contractAddress) {
+      throw new Error('Trustline: contractAddress is required');
+    }
+    if (!params.data) {
+      throw new Error('Trustline: data is required');
+    }
+
+    // Prepare request body
+    const requestBody = {
+      jsonrpc: '2.0',
+      method: 'fetchDefaultPolicy',
+      id: 1,
+      params: {
+        chainId: params.chainId,
+        contractAddress: params.contractAddress,
+        data: params.data,
+        validationMode: params.validationMode,
+        clientId: this.clientId
+      }
+    };
+
+    // Send request
+    try {
+      const res = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      return await res.json();
+    } catch (error) {
+      throw new Error(`Trustline: Failed to fetch default policy: ${error instanceof Error ? error.message : String(error)}`);
     }
   }
 }
