@@ -26,6 +26,31 @@ export interface TrustlineWeb2ValidateParams {
 
 export type TrustlineValidateParams = TrustlineWeb3ValidateParams | TrustlineWeb2ValidateParams;
 
+// openSession Types
+// openSession accepts the same params as validate (can be Web3 or Web2)
+export type OpenSessionParams = TrustlineValidateParams;
+
+export interface OpenSessionResponse {
+  jsonrpc: string;
+  id: number;
+  result: {
+    success: boolean;
+    sessionId: string;
+  };
+}
+
+export interface OpenSessionErrorResponse {
+  jsonrpc: string;
+  id: number;
+  error: {
+    code: number;
+    message: string;
+    data?: any;
+  };
+}
+
+export type OpenSessionResult = OpenSessionResponse | OpenSessionErrorResponse;
+
 export interface TrustlineApprovedResponse {
   jsonrpc: string;
   id: number;

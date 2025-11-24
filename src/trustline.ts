@@ -13,12 +13,15 @@ import {
   EIP712Signer,
   EIP712Domain,
   EIP712Types,
-  EIP712Message
+  EIP712Message,
+  OpenSessionParams,
+  OpenSessionResult
 } from './types';
 
 const DEFAULT_API_URL = 'https://api.trustline.id/api/v0';
 //const DEFAULT_API_URL = 'http://localhost:8080/api/v0';
 const AUTH_URL = 'https://auth.trustline.id';
+//const AUTH_URL = 'http://localhost:3000';
 
 class TrustlineSDK {
   private clientId: string | null = null;
@@ -47,10 +50,47 @@ class TrustlineSDK {
     throw new Error('Trustline: authenticate() not implemented yet');
   }
 
-  private async openAuthPopup(): Promise<string> {
+  /**
+   * Open a session for transaction validation
+   * This must be called before validate() to establish a session context
+   * 
+   * @param params Transaction parameters (same as validate params - can be Web3 or Web2)
+   * @returns Promise resolving to session result with sessionId
+   */
+  async openSession(params: OpenSessionParams): Promise<OpenSessionResult> {
+    if (!this.clientId) {
+      throw new Error('Trustline: SDK not initialized');
+    }
+
+    const body = {
+      jsonrpc: '2.0',
+      method: 'openSession',
+      params: {
+        clientId: this.clientId,
+        ...params,
+      },
+      id: 1,
+    };
+
+    try {
+      const res = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      return await res.json();
+    } catch (error) {
+      throw new Error(`Trustline: Failed to open session: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  private async openAuthPopup(sessionId?: string): Promise<string> {
     return new Promise((resolve, reject) => {
       const popupConfig = 'toolbar=no,scrollbars=no,location=no,statusbar=no,menubar=no,resizable=0,width=620,height=800';
-      const popup = window.open(AUTH_URL, 'Trustline Authentication', popupConfig);
+      const authUrl = sessionId ? `${AUTH_URL}?sessionId=${sessionId}` : AUTH_URL;
+      const popup = window.open(authUrl, 'Trustline Authentication', popupConfig);
       
       if (!popup) {
         reject(new Error('Trustline: Failed to open authentication popup. Please allow popups for this site.'));
@@ -112,28 +152,49 @@ class TrustlineSDK {
     }
 
     let jwtToken = jwt;
+    let sessionId: string | undefined;
 
+    // Step 1: Open session with transaction params
+    try {
+      const sessionResult = await this.openSession(params);
+      
+      // Check if openSession was successful
+      if ('error' in sessionResult) {
+        throw new Error(`Trustline: Failed to open session: ${sessionResult.error.message}`);
+      }
+      
+      if (!sessionResult.result.success) {
+        throw new Error('Trustline: Failed to open session: Unknown error');
+      }
+      
+      sessionId = sessionResult.result.sessionId;
+    } catch (error) {
+      throw error instanceof Error ? error : new Error(`Trustline: Failed to open session: ${String(error)}`);
+    }
+
+    // Step 2: Get JWT token via auth popup (with sessionId)
     const requireAuthentication = true;
 
     // If no JWT token provided, open popup to get one
     // TODO: check with backend if auth is required
     if (!jwtToken && requireAuthentication) {
       try {
-        jwtToken = await this.openAuthPopup();
+        jwtToken = await this.openAuthPopup(sessionId);
       } catch (error) {
         throw error;
       }
     }
 
+    // Step 3: Validate with only sessionId
     const body = {
       jsonrpc: '2.0',
       method: 'validate',
       params: {
-        clientId: this.clientId,
-        ...params,
+        sessionId: sessionId,
       },
       id: 1,
     };
+    
     const res = await fetch(this.apiUrl, {
       method: 'POST',
       headers: {
