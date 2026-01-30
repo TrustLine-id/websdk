@@ -86,24 +86,30 @@ class TrustlineSDK {
     }
   }
 
-  private async openAuthPopup(sessionId?: string): Promise<string> {
+  private async openAuthPopup(sessionId?: string, usePopup: boolean = false): Promise<string> {
     return new Promise((resolve, reject) => {
-      const popupConfig = 'toolbar=no,scrollbars=no,location=no,statusbar=no,menubar=no,resizable=0,width=620,height=800';
       const authUrl = sessionId ? `${AUTH_URL}?sessionId=${sessionId}` : AUTH_URL;
-      const popup = window.open(authUrl, 'Trustline Authentication', popupConfig);
       
-      if (!popup) {
-        reject(new Error('Trustline: Failed to open authentication popup. Please allow popups for this site.'));
-        return;
-      }
+      let cleanup: () => void;
+      let checkClosed: ReturnType<typeof setInterval> | null = null;
+      let timeoutId: ReturnType<typeof setTimeout> | null = null;
 
-      // Focus the popup
-      popup.focus();
+      // Cleanup function
+      const cleanupResources = () => {
+        if (checkClosed) {
+          clearInterval(checkClosed);
+          checkClosed = null;
+        }
+        if (timeoutId) {
+          clearTimeout(timeoutId);
+          timeoutId = null;
+        }
+        window.removeEventListener('message', messageHandler);
+      };
 
-      // Listen for messages from the popup
+      // Message handler for both popup and iframe
       const messageHandler = (event: MessageEvent) => {
         // Verify the origin for security
-        console.log('event', event);
         if (event.origin !== AUTH_URL) {
           return;
         }
@@ -111,11 +117,13 @@ class TrustlineSDK {
         try {
           const data = event.data as JWTAuthMessage;
           if (data && data.type === 'JWT_TOKEN' && typeof data.jwt === 'string') {
-            // Clean up event listener
-            window.removeEventListener('message', messageHandler);
+            // Clean up resources
+            cleanupResources();
             
-            // Close the popup
-            popup.close();
+            // Close popup or remove overlay
+            if (cleanup) {
+              cleanup();
+            }
             
             // Resolve with the JWT token
             resolve(data.jwt);
@@ -127,22 +135,144 @@ class TrustlineSDK {
 
       window.addEventListener('message', messageHandler);
 
-      // Handle popup closed manually
-      const checkClosed = setInterval(() => {
-        if (popup.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', messageHandler);
-          reject(new Error('Trustline: Authentication popup was closed by user'));
+      // Timeout handler
+      const handleTimeout = () => {
+        cleanupResources();
+        if (cleanup) {
+          cleanup();
         }
-      }, 1000);
-
-      // Set a timeout for the authentication process
-      setTimeout(() => {
-        clearInterval(checkClosed);
-        window.removeEventListener('message', messageHandler);
-        popup.close();
         reject(new Error('Trustline: Authentication timeout'));
-      }, 300000); // 5 minutes timeout
+      };
+
+      if (usePopup) {
+        // Popup mode
+        const popupConfig = 'toolbar=no,scrollbars=no,location=no,statusbar=no,menubar=no,resizable=0,width=620,height=800';
+        const popup = window.open(authUrl, 'Trustline Authentication', popupConfig);
+
+        if (!popup) {
+          window.removeEventListener('message', messageHandler);
+          reject(new Error('Trustline: Failed to open authentication popup. Please allow popups for this site.'));
+          return;
+        }
+
+        popup.focus();
+
+        // Cleanup function for popup
+        cleanup = () => {
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+        };
+
+        // Popup closed manually
+        checkClosed = setInterval(() => {
+          if (popup.closed) {
+            cleanupResources();
+            cleanup();
+            reject(new Error('Trustline: Authentication popup was closed by user'));
+          }
+        }, 1000);
+
+        // Timeout for the authentication process
+        timeoutId = setTimeout(handleTimeout, 300000); // 5 minutes timeout
+      } else {
+        // Iframe overlay mode
+        const overlay = document.createElement('div');
+        overlay.style.cssText = `
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background-color: rgba(0, 0, 0, 0.75);
+          z-index: 999999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        `;
+
+        // Iframe container
+        const iframeContainer = document.createElement('div');
+        iframeContainer.style.cssText = `
+          position: relative;
+          width: 620px;
+          height: 800px;
+          max-width: 90vw;
+          max-height: 90vh;
+          background-color: white;
+          border-radius: 8px;
+          overflow: hidden;
+          box-shadow: 0 4px 20px rgba(0, 0, 0, 0.8);
+        `;
+
+        // Close button
+        const closeButton = document.createElement('button');
+        closeButton.innerHTML = '×';
+        closeButton.style.cssText = `
+          position: absolute;
+          top: 0px;
+          right: 0px;
+          width: 32px;
+          height: 32px;
+          border: none;
+          border-radius: 5px;
+          margin: 10px;
+          padding: 0 0;
+          background-color:rgba(0, 123, 255, 0.5);
+          color: white;
+          font-size: 24px;
+          font-weight: bold;
+          font-family: 'Montserrat', sans-serif;
+          cursor: pointer;
+          z-index: 1000000;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          line-height: 1;
+          transition: background-color 0.2s;
+        `;
+        closeButton.onmouseover = () => {
+          closeButton.style.backgroundColor = 'rgba(0, 123, 255, 1)';
+        };
+        closeButton.onmouseout = () => {
+          closeButton.style.backgroundColor = 'rgba(0, 123, 255, 0.4)';
+        };
+        closeButton.onclick = () => {
+          cleanupResources();
+          cleanup();
+          reject(new Error('Trustline: Authentication was cancelled by user'));
+        };
+
+        // Iframe
+        const iframe = document.createElement('iframe');
+        iframe.src = authUrl;
+        iframe.style.cssText = `
+          width: 100%;
+          height: 100%;
+          border: none;
+        `;
+        iframe.setAttribute('allow', 'camera; microphone; geolocation');
+
+        iframeContainer.appendChild(closeButton);
+        iframeContainer.appendChild(iframe);
+        overlay.appendChild(iframeContainer);
+        document.body.appendChild(overlay);
+
+        // Prevent body scroll when overlay is open
+        const originalOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        // Cleanup function for iframe overlay
+        cleanup = () => {
+          if (overlay && overlay.parentNode) {
+            overlay.parentNode.removeChild(overlay);
+          }
+          document.body.style.overflow = originalOverflow;
+        };
+
+        // Set a timeout for the authentication process
+        timeoutId = setTimeout(handleTimeout, 300000); // 5 minutes timeout
+      }
     });
   }
 
