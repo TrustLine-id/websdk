@@ -13,7 +13,7 @@ export interface TrustlineWeb3ValidateParams {
   contractAddress: string;
   nativeAmount: string;
   data: {
-    functionSelector?: string;
+    functionPrototype?: string;
     args?: any[];
   } | string;
   validationMode?: ValidationMode;
@@ -156,10 +156,10 @@ export interface ConfigurePolicyParams {
    * Transaction data (required)
    * Can be either:
    * - Raw: { msgData: "0x..." }
-   * - Structured: { functionSelector: "withdraw(uint256)", args: [...] }
+   * - Structured: { functionPrototype: "withdraw(uint256)", args: [...] }
    */
   data: {
-    functionSelector?: string;
+    functionPrototype?: string;
     args?: any[];
   } | string;
   
@@ -237,10 +237,10 @@ export interface FetchPolicyParams {
    * Transaction data (required)
    * Can be either:
    * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionSelector?: string, args?: any[] }
+   * - Structured: object with { functionPrototype?: string, args?: any[] }
    */
   data: {
-    functionSelector?: string;
+    functionPrototype?: string;
     args?: any[];
   } | string;
   
@@ -300,10 +300,10 @@ export interface FetchDefaultPolicyParams {
    * Transaction data (required)
    * Can be either:
    * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionSelector?: string, args?: any[] }
+   * - Structured: object with { functionPrototype?: string, args?: any[] }
    */
   data: {
-    functionSelector?: string;
+    functionPrototype?: string;
     args?: any[];
   } | string;
   
