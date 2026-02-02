@@ -36,6 +36,7 @@ export interface OpenSessionResponse {
   result: {
     success: boolean;
     sessionId: string;
+    authRequired: boolean;
   };
 }
 

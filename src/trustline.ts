@@ -285,6 +285,7 @@ class TrustlineSDK {
     let sessionId: string | undefined;
 
     // Step 1: Open session with transaction params
+    let authRequired = false;
     try {
       const sessionResult = await this.openSession(params);
       
@@ -298,16 +299,13 @@ class TrustlineSDK {
       }
       
       sessionId = sessionResult.result.sessionId;
+      authRequired = sessionResult.result.authRequired;
     } catch (error) {
       throw error instanceof Error ? error : new Error(`Trustline: Failed to open session: ${String(error)}`);
     }
 
-    // Step 2: Get JWT token via auth popup (with sessionId)
-    const requireAuthentication = true;
-
-    // If no JWT token provided, open popup to get one
-    // TODO: check with backend if auth is required
-    if (!jwtToken && requireAuthentication) {
+    // Step 2: Get JWT token via auth popup (with sessionId) if authentication is required
+    if (!jwtToken && authRequired) {
       try {
         jwtToken = await this.openAuthPopup(sessionId);
       } catch (error) {
