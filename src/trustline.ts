@@ -57,7 +57,7 @@ class TrustlineSDK {
    * @param params Transaction parameters (same as validate params - can be Web3 or Web2)
    * @returns Promise resolving to session result with sessionId
    */
-  async openSession(params: OpenSessionParams): Promise<OpenSessionResult> {
+  private async openSession(params: OpenSessionParams): Promise<OpenSessionResult> {
     if (!this.clientId) {
       throw new Error('Trustline: SDK not initialized');
     }
