@@ -346,14 +346,14 @@ class TrustlineSDK {
    * For raw data (string), returns normalized hex string
    * For structured data (object), returns JSON stringified version
    */
-  private prepareDataForSignature(data: { functionSelector?: string; args?: any[] } | string): string {
+  private prepareDataForSignature(data: { functionPrototype?: string; args?: any[] } | string): string {
     if (typeof data === 'string') {
       // For raw data, use the hex string directly (normalized to lowercase)
       return this.normalizeString(data);
     } else {
       // For structured data, JSON stringify it
       return JSON.stringify({
-        functionSelector: data.functionSelector,
+        functionPrototype: data.functionPrototype,
         args: data.args
       });
     }
@@ -426,7 +426,7 @@ class TrustlineSDK {
    * 
    * The data field can be either:
    * - Raw: string (hex string like "0x...") - will be used directly for signing (normalized to lowercase)
-   * - Structured: object with { functionSelector?: string, args?: any[] } - will be JSON stringified for signing
+   * - Structured: object with { functionPrototype?: string, args?: any[] } - will be JSON stringified for signing
    * 
    * @param params Configuration parameters
    * @param signer EIP-712 signer function that can sign typed data
@@ -454,7 +454,7 @@ class TrustlineSDK {
    * const result = await trustline.configurePolicy({
    *   // ... other params
    *   data: {
-   *     functionSelector: 'withdraw(uint256)',
+   *     functionPrototype: 'withdraw(uint256)',
    *     args: ['1']
    *   }
    * }, eip712Signer);
@@ -556,7 +556,7 @@ class TrustlineSDK {
    * 
    * The data field can be either:
    * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionSelector?: string, args?: any[] }
+   * - Structured: object with { functionPrototype?: string, args?: any[] }
    * 
    * @param params Fetch policy parameters
    * @returns Promise resolving to the fetch policy result
@@ -587,7 +587,7 @@ class TrustlineSDK {
    *   contractAddress: '0x...',
    *   nativeAmount: '0',
    *   data: {
-   *     functionSelector: 'withdraw(uint256)',
+   *     functionPrototype: 'withdraw(uint256)',
    *     args: ['1']
    *   }
    * });
@@ -655,7 +655,7 @@ class TrustlineSDK {
    * 
    * The data field can be either:
    * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionSelector?: string, args?: any[] }
+   * - Structured: object with { functionPrototype?: string, args?: any[] }
    * 
    * @param params Fetch default policy parameters
    * @returns Promise resolving to the fetch default policy result
@@ -682,7 +682,7 @@ class TrustlineSDK {
    *   chainId: '84532',
    *   contractAddress: '0x...',
    *   data: {
-   *     functionSelector: 'withdraw(uint256)',
+   *     functionPrototype: 'withdraw(uint256)',
    *     args: ['1']
    *   }
    * });
