@@ -28,6 +28,28 @@ class TrustlineSDK {
   private loginUri?: string;
   private apiUrl: string = DEFAULT_API_URL;
 
+  /**
+   * Initialize the SDK with client ID and optional login URI
+   * 
+   * @param optionsOrElement Either an options object with clientId and optional loginUri,
+   *                         or an HTMLElement with data-client_id and optional data-login_uri attributes
+   * @throws {Error} If clientId is not provided
+   * 
+   * @example
+   * ```typescript
+   * // Using options object
+   * trustline.init({
+   *   clientId: 'YOUR_TRUSTLINE_CLIENT_ID',
+   *   loginUri: 'https://yourapp.com/auth/trustline/callback'
+   * });
+   * ```
+   * 
+   * @example
+   * ```typescript
+   * // Using DOM element
+   * trustline.init(document.getElementById('trustline-init'));
+   * ```
+   */
   init(optionsOrElement: TrustlineInitOptions | HTMLElement) {
     if (optionsOrElement instanceof HTMLElement) {
       const el = optionsOrElement;
@@ -42,6 +64,12 @@ class TrustlineSDK {
     }
   }
 
+  /**
+   * Triggers Trustline's authentication flow
+   * 
+   * @throws {Error} If SDK is not initialized or if method is not implemented
+   * @note This method is currently not fully implemented
+   */
   authenticate() {
     // TODO: add Trustline validation support
     if (!this.clientId) {
@@ -276,6 +304,43 @@ class TrustlineSDK {
     });
   }
 
+  /**
+   * Validate a Web3 transaction or Web2 action
+   * 
+   * This method:
+   * 1. Opens a session with the transaction parameters
+   * 2. Triggers authentication popup/iframe if required (unless JWT is provided)
+   * 3. Performs the validation
+   * 
+   * @param params Transaction or action parameters (Web3 or Web2)
+   * @param jwt Optional JWT token (if provided, skips authentication popup)
+   * @returns Promise resolving to validation response
+   * @throws {Error} If SDK is not initialized or if validation fails
+   * 
+   * @example
+   * ```typescript
+   * // Validate Web3 transaction
+   * const response = await trustline.validate({
+   *   chainId: '1',
+   *   senderAddress: '0x...',
+   *   contractAddress: '0x...',
+   *   nativeAmount: '0',
+   *   data: {
+   *     functionPrototype: 'transfer(address,uint256)',
+   *     args: ['0x...', '1000000000000000000']
+   *   }
+   * });
+   * ```
+   * 
+   * @example
+   * ```typescript
+   * // Validate Web2 action
+   * const response = await trustline.validate({
+   *   actionId: 'action-123',
+   *   policyData: { foo: 'bar' }
+   * });
+   * ```
+   */
   async validate(params: TrustlineValidateParams, jwt?: string): Promise<TrustlineValidateResponse> {
     if (!this.clientId) {
       throw new Error('Trustline: SDK not initialized');

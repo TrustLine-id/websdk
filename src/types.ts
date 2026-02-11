@@ -3,27 +3,81 @@
 export type ValidationMode = 'uniswapv4' | 'morphov2' | 'erc3643' | 'dapp';
 
 export interface TrustlineInitOptions {
+  /**
+   * Trustline client ID (required)
+   * Unique identifier for your application
+   */
   clientId: string;
+  
+  /**
+   * Login callback URI (optional)
+   * URI to redirect to after authentication
+   */
   loginUri?: string;
 }
 
 export interface TrustlineWeb3ValidateParams {
+  /**
+   * Chain ID (required)
+   * Can be hex string (0x...) or decimal number
+   */
   chainId: string | number;
+  
+  /**
+   * Sender address (required)
+   * The address that will send the transaction
+   */
   senderAddress: string;
+  
+  /**
+   * Contract address (required)
+   * The target contract address for the transaction
+   */
   contractAddress: string;
+  
+  /**
+   * Native amount (required)
+   * Transaction value in native token (ETH, etc.)
+   * Can be hex string (0x...) or decimal string
+   */
   nativeAmount: string;
+  
+  /**
+   * Transaction data (required)
+   * Can be either:
+   * - Raw: string (hex string like "0x...")
+   * - Structured: object with { functionPrototype?: string, args?: any[] }
+   */
   data: {
     functionPrototype?: string;
     args?: any[];
   } | string;
+  
+  /**
+   * Validation mode (optional)
+   * "erc3643", "uniswapv4", "morphov2", or undefined for dapp mode
+   */
   validationMode?: ValidationMode;
 }
 
 export interface TrustlineWeb2ValidateParams {
+  /**
+   * Action ID (required)
+   * Unique identifier for the Web2 action
+   */
   actionId: string;
+  
+  /**
+   * Policy data (required)
+   * JSON object with action-specific data
+   */
   policyData: Record<string, any>;
 }
 
+/**
+ * Union type for validation parameters
+ * Can be either Web3 transaction parameters or Web2 action parameters
+ */
 export type TrustlineValidateParams = TrustlineWeb3ValidateParams | TrustlineWeb2ValidateParams;
 
 // openSession Types
