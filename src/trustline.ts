@@ -360,11 +360,16 @@ class TrustlineSDK {
       }
       
       if (!sessionResult.result.success) {
-        throw new Error('Trustline: Failed to open session: Unknown error');
+        const errorMessage = sessionResult.result.error || 'Unknown error';
+        throw new Error(`Trustline: Failed to open session: ${errorMessage}`);
+      }
+      
+      if (!sessionResult.result.sessionId) {
+        throw new Error('Trustline: Failed to open session: Missing sessionId');
       }
       
       sessionId = sessionResult.result.sessionId;
-      authRequired = sessionResult.result.authRequired;
+      authRequired = sessionResult.result.authRequired ?? false;
     } catch (error) {
       throw error instanceof Error ? error : new Error(`Trustline: Failed to open session: ${String(error)}`);
     }

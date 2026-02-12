@@ -89,8 +89,9 @@ export interface OpenSessionResponse {
   id: number;
   result: {
     success: boolean;
-    sessionId: string;
-    authRequired: boolean;
+    sessionId?: string;
+    authRequired?: boolean;
+    error?: string;
   };
 }
 
