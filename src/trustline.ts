@@ -319,7 +319,7 @@ class TrustlineSDK {
    * 
    * @example
    * ```typescript
-   * // Validate Web3 transaction
+   * // Validate EVM transaction
    * const response = await trustline.validate({
    *   chainId: '1',
    *   senderAddress: '0x...',
@@ -328,6 +328,38 @@ class TrustlineSDK {
    *   data: {
    *     functionPrototype: 'transfer(address,uint256)',
    *     args: ['0x...', '1000000000000000000']
+   *   }
+   * });
+   * ```
+   * 
+   * @example
+   * ```typescript
+   * // Validate Stellar / Soroban intent (Firewall forward / bump)
+   * const response = await trustline.validate({
+   *   chainId: '2',
+   *   senderAddress: 'G...',
+   *   contractAddress: 'C...',
+   *   nativeAmount: '0',
+   *   validationMode: 'dapp',
+   *   data: {
+   *     functionPrototype: 'forward(symbol,vec)',
+   *     args: ['bump', []]
+   *   }
+   * });
+   * ```
+   * 
+   * @example
+   * ```typescript
+   * // Validate Stellar / Soroban intent (Payment Forwarder pay_native)
+   * const response = await trustline.validate({
+   *   chainId: '2',
+   *   senderAddress: 'G...',
+   *   contractAddress: 'C...',
+   *   nativeAmount: '10000000',
+   *   validationMode: 'dapp',
+   *   data: {
+   *     functionPrototype: 'pay_native(address,address,i128)',
+   *     args: ['C...', 'G...', '10000000']
    *   }
    * });
    * ```
@@ -495,8 +527,8 @@ class TrustlineSDK {
    * Configure a policy customization for a specific transaction context
    * 
    * The data field can be either:
-   * - Raw: string (hex string like "0x...") - will be used directly for signing (normalized to lowercase)
-   * - Structured: object with { functionPrototype?: string, args?: any[] } - will be JSON stringified for signing
+   * - Raw: string hex (`0x...`) - used directly for signing (normalized to lowercase)
+   * - Structured: { functionPrototype, args } - positional args; JSON stringified for signing
    * 
    * @param params Configuration parameters
    * @param signer EIP-712 signer function that can sign typed data
@@ -625,8 +657,8 @@ class TrustlineSDK {
    * including any customizations that have been configured via configurePolicy().
    * 
    * The data field can be either:
-   * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionPrototype?: string, args?: any[] }
+   * - Raw: string hex (`0x...`) - EVM calldata, or Stellar canonical intent bytes
+   * - Structured: { functionPrototype, args } - positional args; types from functionPrototype
    * 
    * @param params Fetch policy parameters
    * @returns Promise resolving to the fetch policy result
@@ -724,8 +756,8 @@ class TrustlineSDK {
    * This is useful for comparing default vs customized policies.
    * 
    * The data field can be either:
-   * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionPrototype?: string, args?: any[] }
+   * - Raw: string hex (`0x...`) - EVM calldata, or Stellar canonical intent bytes
+   * - Structured: { functionPrototype, args } - positional args; types from functionPrototype
    * 
    * @param params Fetch default policy parameters
    * @returns Promise resolving to the fetch default policy result

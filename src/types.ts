@@ -19,34 +19,35 @@ export interface TrustlineInitOptions {
 export interface TrustlineWeb3ValidateParams {
   /**
    * Chain ID (required)
-   * Can be hex string (0x...) or decimal number
+   * EVM: hex (0x...) or decimal. Stellar: "1" mainnet / "2" testnet / "3" futurenet.
    */
   chainId: string | number;
   
   /**
    * Sender address (required)
-   * The address that will send the transaction
+   * EVM: 0x.... Stellar: G... account that will require_auth as business sender.
    */
   senderAddress: string;
   
   /**
    * Contract address (required)
-   * The target contract address for the transaction
+   * EVM: target contract. Stellar: protocol / firewall / forwarder C...
    */
   contractAddress: string;
   
   /**
    * Native amount (required)
-   * Transaction value in native token (ETH, etc.)
-   * Can be hex string (0x...) or decimal string
+   * EVM: native token value (hex or decimal string). Stellar: intent value in stroops (decimal string).
    */
   nativeAmount: string;
   
   /**
    * Transaction data (required)
    * Can be either:
-   * - Raw: string (hex string like "0x...")
-   * - Structured: object with { functionPrototype?: string, args?: any[] }
+   * - Raw: string hex (`0x...`) - EVM calldata, or Stellar canonical intent bytes
+   * - Structured: { functionPrototype?: string, args?: any[] }
+   *   Types come from functionPrototype; args are positional values.
+   *   E.g. Stellar: { functionPrototype: "forward(symbol,vec)", args: ["bump", []] }
    */
   data: {
     functionPrototype?: string;
@@ -55,7 +56,8 @@ export interface TrustlineWeb3ValidateParams {
   
   /**
    * Validation mode (optional)
-   * "erc3643", "uniswapv4", "morphov2", or undefined for dapp mode
+   * EVM: "erc3643", "uniswapv4", "morphov2", or "dapp".
+   * Stellar: use "dapp" (only supported mode today).
    */
   validationMode?: ValidationMode;
 }

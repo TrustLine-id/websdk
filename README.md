@@ -2,6 +2,8 @@
 
 A JavaScript/TypeScript SDK for integrating Trustline Web3 and Web2 action validation into any web app (React, Angular, Vue, Vanilla JS, etc).
 
+Supports **EVM** and **Stellar (Soroban)** intents: the same `validate()` flow pre-validates an action off-chain; on approval the backend can publish an oracle proof that the on-chain contract consumes (e.g. via `require_trustline*`).
+
 ## Features
 
 - ✅ **Web3 Transaction Validation** - Validate blockchain transactions with customizable policies
@@ -10,7 +12,7 @@ A JavaScript/TypeScript SDK for integrating Trustline Web3 and Web2 action valid
 - ✅ **Policy Fetching** - Retrieve resolved and default policies before validation
 - ✅ **Session Management** - Open sessions for transaction validation flows
 - ✅ **Authentication Flow** - Integrated JWT authentication with popup/iframe support
-- ✅ **Multiple Validation Modes** - Support for Uniswap V4, Morpho V2, ERC-3643, and custom dapp modes
+- ✅ **Multiple Validation Modes** - Support for Uniswap V4, Morpho V2, ERC-3643, and custom dapp modes (Stellar uses `dapp` today)
 - ✅ **TypeScript Support** - Full TypeScript definitions included
 - ✅ **Multiple Build Formats** - ESM, CommonJS, and UMD builds available
 
@@ -33,7 +35,7 @@ trustline.init({
   loginUri: 'https://yourapp.com/auth/trustline/callback', // optional
 });
 
-// Validate a Web3 transaction
+// Validate an EVM transaction
 const response = await trustline.validate({
   chainId: '1',
   senderAddress: '0x...',
@@ -44,6 +46,19 @@ const response = await trustline.validate({
     args: ['0x...', '1000000000000000000']
   },
   validationMode: 'dapp', // optional: 'uniswapv4', 'morphov2', 'erc3643', or 'dapp'
+});
+
+// Validate a Stellar / Soroban intent (then sign the on-chain invoke, e.g. with Freighter)
+const stellarResponse = await trustline.validate({
+  chainId: '2', // Stellar testnet (1=mainnet, 2=testnet, 3=futurenet)
+  senderAddress: 'G...',
+  contractAddress: 'C...', // protocol / firewall contract
+  nativeAmount: '0', // stroops as decimal string; "0" when no XLM is bound into the intent
+  data: {
+    functionPrototype: 'forward(symbol,vec)',
+    args: ['bump', []]
+  },
+  validationMode: 'dapp',
 });
 
 // Validate a Web2 action
@@ -116,14 +131,14 @@ Validate a Web3 transaction or Web2 action. This method:
 **Web3 Parameters:**
 ```typescript
 {
-  chainId: string | number;
-  senderAddress: string;
-  contractAddress: string;
-  nativeAmount: string;
+  chainId: string | number;       // EVM chain id, or Stellar: "1" mainnet / "2" testnet / "3" futurenet
+  senderAddress: string;          // EVM 0x…, or Stellar G…
+  contractAddress: string;        // EVM contract, or Soroban protocol contract C… (not the VE)
+  nativeAmount: string;           // EVM value, or stroops decimal string for Stellar
   data: {
     functionPrototype?: string;
-    args?: any[];
-  } | string; // Raw hex string or structured data
+    args?: any[];                 // Positional values; types from functionPrototype (EVM + Stellar)
+  } | string;                     // Raw hex (`0x…`): EVM calldata, or Stellar canonical intent bytes
   validationMode?: 'uniswapv4' | 'morphov2' | 'erc3643' | 'dapp';
 }
 ```
@@ -144,7 +159,21 @@ Validate a Web3 transaction or Web2 action. This method:
 - `TrustlineApprovalRequiredResponse` - Additional approval needed
 - `TrustlineErrorResponse` - Error occurred
 
-**Example:**
+Approved payload shape (SDK typically exposes it under `response.result`):
+
+```typescript
+{
+  status: 'approved',
+  certId: '...',
+  attestation: {
+    timestamp: '...',         // ISO-8601
+    policyHash: '...',
+    signature?: '0x...'       // EVM only
+  }
+}
+```
+
+**Example (EVM):**
 ```typescript
 const response = await trustline.validate({
   chainId: '1',
@@ -162,9 +191,51 @@ if ('result' in response && response.result.status === 'approved') {
 }
 ```
 
+**Example (Stellar - Firewall `forward` / bump):**
+```typescript
+const response = await trustline.validate({
+  chainId: '2',
+  senderAddress: 'G...',
+  contractAddress: 'C...', // firewall / protocol contract id
+  nativeAmount: '0',
+  validationMode: 'dapp',
+  data: {
+    functionPrototype: 'forward(symbol,vec)',
+    args: ['bump', []]
+  }
+});
+
+if ('result' in response && response.result.status === 'approved') {
+  // Then sign the matching on-chain invoke (e.g. Freighter):
+  // forward(initiator, fn_name="bump", args=[])
+  console.log('Approved', response.result.certId);
+}
+```
+
+**Example (Stellar - Payment Forwarder `pay_native`, 1 XLM):**
+```typescript
+const response = await trustline.validate({
+  chainId: '2',
+  senderAddress: 'G...',
+  contractAddress: 'C...', // payment forwarder contract id
+  nativeAmount: '10000000', // 1 XLM in stroops
+  validationMode: 'dapp',
+  data: {
+    functionPrototype: 'pay_native(address,address,i128)',
+    args: [
+      'C...', // native SAC
+      'G...', // destination
+      '10000000'
+    ]
+  }
+});
+```
+
 ### `trustline.configurePolicy(params, signer)`
 
 Configure a policy customization for a specific transaction context. Customizations are stored and applied during validation when matching transaction parameters are detected.
+
+> **EVM only today.** Backend `configurePolicy` uses EIP-712 + EVM actionId/hash helpers.
 
 **Parameters:**
 - `params`: `ConfigurePolicyParams` - Policy configuration parameters
@@ -239,6 +310,8 @@ const result = await trustline.configurePolicy({
 
 Fetch the resolved policy for a specific transaction context. Returns the exact same policy that would be applied during a `validate()` call, including any customizations.
 
+> **EVM-oriented today.** Same limitation as `configurePolicy`: actionId/hash are computed with EVM helpers, so results are not reliable for Stellar contexts.
+
 **Parameters:**
 - `params`: `FetchPolicyParams`
 
@@ -280,6 +353,8 @@ if (result.result.success) {
 
 Fetch the default policy for a specific transaction context without resolving customizations. Useful for comparing default vs customized policies.
 
+> **EVM-oriented today** (same caveat as `fetchPolicy`).
+
 **Parameters:**
 - `params`: `FetchDefaultPolicyParams`
 
@@ -320,29 +395,82 @@ Triggers Trustline's authentication flow. Currently not fully implemented.
 
 The SDK supports different validation modes for various DeFi protocols:
 
-- **`dapp`** (default) - Custom dapp validation mode
-- **`uniswapv4`** - Uniswap V4 protocol validation
-- **`morphov2`** - Morpho V2 protocol validation
-- **`erc3643`** - ERC-3643 token standard validation
+- **`dapp`** (default) - Custom dapp validation mode - **required for Stellar / Soroban today**
+- **`uniswapv4`** - Uniswap V4 protocol validation (EVM)
+- **`morphov2`** - Morpho V2 protocol validation (EVM)
+- **`erc3643`** - ERC-3643 token standard validation (EVM)
+
+On Stellar, `validationMode` maps to the on-chain intent hash domain (`mode_u32`; `dapp` → `0`).
 
 ## Transaction Data Format
 
-The `data` field supports two formats:
+The `data` field supports **raw** (`0x…` hex string) or **structured** (`{ functionPrototype, args }`). Both engines accept either form; semantics differ.
 
-### Raw Data (Hex String)
+| Form | EVM | Stellar |
+|------|-----|---------|
+| **Structured** | ABI-encoded via prototype + **positional** args | SCVal conversion via prototype + **positional** args → `*_intent_data` simulation |
+| **Raw** | `msg.data` calldata as-is | Hex of **pre-canonicalized intent bytes** |
+
+Use **structured** for Stellar in normal integrations. Raw Stellar is only for opaque bytes you already computed to match on-chain `require_trustline*` - it skips SCVal conversion / intent helpers.
+
+### Raw Data
 ```typescript
-data: '0x...'
+data: '0x...' // EVM calldata, or Stellar canonical intent bytes
 ```
 
-### Structured Data
+### Structured Data (same shape for EVM and Stellar)
+
+Types come from `functionPrototype`; `args` are positional values (no `{ type, value }` wrappers).
+
 ```typescript
+// EVM
 data: {
   functionPrototype: 'withdraw(uint256)',
   args: ['1']
 }
+
+// Stellar / Soroban
+data: {
+  functionPrototype: 'forward(symbol,vec)',
+  args: ['bump', []]
+}
+
+data: {
+  functionPrototype: 'pay_native(address,address,i128)',
+  args: ['C...', 'G...', '10000000']
+}
 ```
 
-Structured data is automatically JSON stringified for EIP-712 signing. No ABI encoding is required.
+| Prototype type | JSON value |
+|----------------|------------|
+| `address` / `symbol` / `string` / `bytes` | string (addresses `G…`/`C…`; bytes as hex) |
+| integers (`i128`, `u64`, …) | decimal string (preferred) or number |
+| `bool` | boolean |
+| `vec` | `[]` only when bare; prefer `vec<T>` with a JSON array of `T` |
+| `tuple` / `(T1,T2)` | JSON array |
+| `map<K,V>` | `[[k,v], …]` or a JSON object (string/symbol keys) |
+| `option<T>` | `null` (none) or a value of type `T` |
+
+**Field semantics on Stellar:**
+
+| Field | Meaning |
+|-------|---------|
+| `chainId` | Logical Trustline chain id for the Stellar network (see mapping below) |
+| `senderAddress` | Stellar account (`G…`) that will `require_auth` as business sender |
+| `contractAddress` | Protocol / firewall / forwarder contract (`C…`), **not** the Validation Engine |
+| `nativeAmount` | Intent `value` as decimal stroops string (`"0"` if none) |
+
+**Stellar `chainId` → network:**
+
+| `chainId` | Network |
+|-----------|---------|
+| `"1"` | Mainnet |
+| `"2"` | Testnet |
+| `"3"` | Futurenet |
+
+After `validate` succeeds with `status: 'approved'`, the user signs the **matching** on-chain invoke (same sender, protocol, value, and canonical `data`). The SDK does not build or submit Soroban transactions.
+
+Structured data is also JSON-stringified for EIP-712 signing in `configurePolicy` (**EVM only**). No ABI encoding is required from the app for validation.
 
 ## Authentication Flow
 
