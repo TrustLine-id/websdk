@@ -115,10 +115,12 @@ export interface TrustlineApprovedResponse {
   result: {
     status: 'approved';
     certId: string;
-    partialCert: {
+    attestation: {
+      /** ISO-8601 timestamp */
       timestamp: string;
-      signature: string;
-      policyHash?: string;
+      policyHash: string;
+      /** EVM only */
+      signature?: string;
     };
   };
 }
