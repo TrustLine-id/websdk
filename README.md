@@ -55,7 +55,7 @@ const stellarResponse = await trustline.validate({
   contractAddress: 'C...', // protocol / firewall contract
   nativeAmount: '0', // stroops as decimal string; "0" when no XLM is bound into the intent
   data: {
-    functionPrototype: 'forward(symbol,vec)',
+    functionPrototype: 'forward(symbol,vec<>)',
     args: ['bump', []]
   },
   validationMode: 'dapp',
@@ -137,7 +137,7 @@ Validate a Web3 transaction or Web2 action. This method:
   nativeAmount: string;           // EVM value, or stroops decimal string for Stellar
   data: {
     functionPrototype?: string;
-    args?: any[];                 // Positional values; types from functionPrototype (EVM + Stellar)
+    args?: any[];                 // Positional values; Stellar types must be explicit in functionPrototype
   } | string;                     // Raw hex (`0x…`): EVM calldata, or Stellar canonical intent bytes
   validationMode?: 'uniswapv4' | 'morphov2' | 'erc3643' | 'dapp';
 }
@@ -200,14 +200,14 @@ const response = await trustline.validate({
   nativeAmount: '0',
   validationMode: 'dapp',
   data: {
-    functionPrototype: 'forward(symbol,vec)',
+    functionPrototype: 'forward(symbol,vec<>)',
     args: ['bump', []]
   }
 });
 
 if ('result' in response && response.result.status === 'approved') {
   // Then sign the matching on-chain invoke (e.g. Freighter):
-  // forward(initiator, fn_name="bump", args=[])
+  // forward(fn_name="bump", args=[])
   console.log('Approved', response.result.certId);
 }
 ```
@@ -408,7 +408,7 @@ The `data` field supports **raw** (`0x…` hex string) or **structured** (`{ fun
 
 | Form | EVM | Stellar |
 |------|-----|---------|
-| **Structured** | ABI-encoded via prototype + **positional** args | SCVal conversion via prototype + **positional** args → `*_intent_data` simulation |
+| **Structured** | ABI-encoded via prototype + **positional** args | Explicit types in `functionPrototype` + **positional** args → local `encode_intent` (no value inference) |
 | **Raw** | `msg.data` calldata as-is | Hex of **pre-canonicalized intent bytes** |
 
 Use **structured** for Stellar in normal integrations. Raw Stellar is only for opaque bytes you already computed to match on-chain `require_trustline*` - it skips SCVal conversion / intent helpers.
@@ -420,18 +420,20 @@ data: '0x...' // EVM calldata, or Stellar canonical intent bytes
 
 ### Structured Data (same shape for EVM and Stellar)
 
-Types come from `functionPrototype`; `args` are positional values (no `{ type, value }` wrappers).
+**EVM:** types come from `functionPrototype`; `args` are positional values (no `{ type, value }` wrappers).
+
+**Stellar:** types must be **fully explicit** in `functionPrototype` (no SEP-48 fetch, no value inference). `args` are values only. Named structs use `struct{field:type,…}` (field names required for the ScMap); JSON may be an object **or** a positional array. `vec<T>` = homogeneous; `vec<T1,T2,…>` = heterogeneous `Vec<Val>` (e.g. firewall `forward` args); `vec<>` = empty vec only.
 
 ```typescript
-// EVM
+// EVM — types from the prototype string
 data: {
   functionPrototype: 'withdraw(uint256)',
   args: ['1']
 }
 
-// Stellar / Soroban
+// Stellar — empty forward payload
 data: {
-  functionPrototype: 'forward(symbol,vec)',
+  functionPrototype: 'forward(symbol,vec<>)',
   args: ['bump', []]
 }
 
@@ -439,17 +441,63 @@ data: {
   functionPrototype: 'pay_native(address,address,i128)',
   args: ['C...', 'G...', '10000000']
 }
+
+// Stellar — Blend submit (homogeneous vec of structs), positional struct values
+data: {
+  functionPrototype:
+    'submit(address,address,vec<struct{address:address,amount:i128,request_type:u32}>)',
+  args: [
+    'G...FROM',
+    'G...SPENDER',
+    [
+      ['C...ASSET', '10000000', 2],
+      ['C...OTHER', '5000000', 0]
+    ]
+  ]
+}
+
+// Same structs as named objects (equivalent XDR)
+data: {
+  functionPrototype:
+    'submit(address,address,vec<struct{address:address,amount:i128,request_type:u32}>)',
+  args: [
+    'G...FROM',
+    'G...SPENDER',
+    [
+      { address: 'C...ASSET', amount: '10000000', request_type: 2 },
+      { address: 'C...OTHER', amount: '5000000', request_type: 0 }
+    ]
+  ]
+}
+
+// Stellar — Blend via firewall forward (heterogeneous vec = Vec<Val> bag)
+data: {
+  functionPrototype:
+    'forward(symbol,vec<address,address,vec<struct{address:address,amount:i128,request_type:u32}>>)',
+  args: [
+    'submit',
+    [
+      'G...FROM',
+      'G...SPENDER',
+      [['C...ASSET', '10000000', 2]]
+    ]
+  ]
+}
 ```
 
-| Prototype type | JSON value |
-|----------------|------------|
-| `address` / `symbol` / `string` / `bytes` | string (addresses `G…`/`C…`; bytes as hex) |
+| Stellar prototype type | JSON value |
+|------------------------|------------|
+| `address` / `symbol` / `string` | string (addresses `G…`/`C…`) |
+| `bytes` / `bytesN` / `bytesN<N>` | hex string: `"0xab…"`, empty → `"0x"` or `""` (**not** a JSON array of numbers) |
 | integers (`i128`, `u64`, …) | decimal string (preferred) or number |
 | `bool` | boolean |
-| `vec` | `[]` only when bare; prefer `vec<T>` with a JSON array of `T` |
+| `vec<T>` | JSON array of `T` |
+| `vec<T1,T2,…>` | JSON array of length N (heterogeneous `Vec<Val>`) |
+| `vec<>` | `[]` only |
 | `tuple` / `(T1,T2)` | JSON array |
 | `map<K,V>` | `[[k,v], …]` or a JSON object (string/symbol keys) |
 | `option<T>` | `null` (none) or a value of type `T` |
+| `struct{field:type,…}` | `{ field: value, … }` **or** `[v0, v1, …]` in field declaration order → ScMap |
 
 **Field semantics on Stellar:**
 
