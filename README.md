@@ -574,4 +574,5 @@ MIT
 
 - **Homepage:** https://www.trustline.id
 - **Repository:** https://github.com/trustline-id/websdk
+- **Changelog:** [CHANGELOG.md](CHANGELOG.md)
 - **Issues:** https://github.com/trustline-id/websdk/issues
