@@ -279,7 +279,6 @@ class TrustlineSDK {
           height: 100%;
           border: none;
         `;
-        iframe.setAttribute('allow', 'camera; microphone; geolocation');
 
         iframeContainer.appendChild(closeButton);
         iframeContainer.appendChild(iframe);
