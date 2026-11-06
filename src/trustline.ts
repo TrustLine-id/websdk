@@ -279,6 +279,10 @@ class TrustlineSDK {
           height: 100%;
           border: none;
         `;
+        iframe.setAttribute(
+          'allow',
+          'publickey-credentials-get; publickey-credentials-create'
+        );
 
         iframeContainer.appendChild(closeButton);
         iframeContainer.appendChild(iframe);
