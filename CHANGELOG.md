@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-11-10
+
+### Changed
+
+- Auth iframe Permissions Policy: drop unused `camera`, `microphone`, and `geolocation`
+  delegations that a host dApp would otherwise grant to `auth.trustline.id`.
+- Allow only `publickey-credentials-get` and `publickey-credentials-create` on the auth
+  iframe so Passkey / WebAuthn works in the embedded authentication flow.
+
 ## [1.2.0] - 2026-10-06
 
 ### Documentation
@@ -74,7 +83,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Approved, rejected, approval-required, and error response types.
 - TypeScript declarations and CommonJS, ES module, and UMD builds.
 
-[Unreleased]: https://github.com/TrustLine-id/websdk/compare/v1.2.0...HEAD
+[Unreleased]: https://github.com/TrustLine-id/websdk/compare/v1.3.0...HEAD
+[1.3.0]: https://github.com/TrustLine-id/websdk/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/TrustLine-id/websdk/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/TrustLine-id/websdk/compare/v1.0.2...v1.1.0
 [1.0.2]: https://github.com/TrustLine-id/websdk/compare/v1.0.1...v1.0.2
