@@ -1,0 +1,37 @@
+# Runs the unit tests and the package build on every pull request and on master.
+# The "test" job is a required status check before merging (SOC 2 control CM-02).
+name: ci
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # The job name is the required status check on the default branch (org ruleset
+    # "SOC2 - protect default branch"). Keep it "test" in every repository.
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build
